@@ -228,6 +228,7 @@ fi
 
 # case setup and run
 case_name=${CASE_DIR}/${CASENAME}
+echo "case: ${case_name}"
 
 # change into cime directory
 set +e

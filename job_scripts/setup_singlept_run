@@ -253,9 +253,6 @@ set -e
 ./xmlchange STOP_OPTION=nyears
 ./xmlchange STOP_N=${STOP_N}
 ./xmlchange RESUBMIT=${RESUBMIT}
-./xmlchange DATM_YR_ALIGN=1
-./xmlchange DATM_YR_START=1914
-./xmlchange DATM_YR_END=2014
 ./xmlchange CLM_ACCELERATED_SPINUP=off
 
 ./xmlchange PTS_LON=${LON}

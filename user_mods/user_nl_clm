@@ -41,5 +41,3 @@ hist_fincl1 = 'FATES_VEGC', 'FATES_FRACTION', 'FATES_GPP', 'FATES_LAI', 'FATES_B
               'FATES_MORTALITY_CSTARV_SZ', 'FATES_MORTALITY_FREEZING_SZ',
               'FATES_MORTALITY_HYDRAULIC_SZ', 'FATES_MORTALITY_IMPACT_SZ',
               'FATES_MORTALITY_SENESCENCE_SZ', 'FATES_MORTALITY_TERMINATION_SZ'
-
-fates_paramfile = '/glade/work/afoster/ABoVE/above_nwt/parameter_files/default_nwt_params.json'

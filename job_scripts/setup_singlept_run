@@ -3,13 +3,17 @@ set -euo pipefail
 
 #==============================================================================
 # Define default arg values
+script_dir="$(cd "$(dirname "$0")" && pwd)"  # path to dir containing this script
 
 # default CLM_USRDAT_DIR_PARENT (overridable with -d/--clm-usrdat-dir-parent):
 DEFAULT_CLM_USRDAT_DIR_PARENT="/glade/work/afoster/ABoVE/subset_data"
 
+# default fates_paramfile (overridable with -p/--fates-paramfile):
+# (relative to the directory containing this script)
+DEFAULT_FATES_PARAMFILE="${script_dir}/../parameter_files/default_nwt_params.json"
+
 # default user_mods directory (overridable with -u/--user-mods-dir):
 # ../user_mods relative to the directory containing this script
-script_dir="$(cd "$(dirname "$0")" && pwd)"
 DEFAULT_USER_MODS_DIR="${script_dir}/../user_mods"
 
 #==============================================================================
@@ -29,6 +33,7 @@ Options:
   -c, --case-dir <dir>
   -d, --clm-usrdat-dir-parent <dir>
   -n, --case-name <name>
+  -p, --fates-paramfile <file>
   -s, --src-dir <dir>
   -u, --user-mods-dir <dir>
 
@@ -69,6 +74,11 @@ Optional:
                  the command line with -d/--clm-usrdat-dir-parent, which takes
                  precedence over the config file. If set in neither place,
                  defaults to '${DEFAULT_CLM_USRDAT_DIR_PARENT}'
+  FATES_PARAMFILE
+                 path to use for the fates_paramfile namelist variable. Can also
+                 be set on the command line with -p/--fates-paramfile, which
+                 takes precedence over the config file. Default:
+                 '${DEFAULT_FATES_PARAMFILE}'
 
 example config file:
   SRC_DIR=/glade/work/afoster/ABoVE/calibration_update/CTSM
@@ -83,6 +93,7 @@ example config file:
   LON=246.84602
   SITE=ZF14-207
   SURDAT_FILE=surfdata_ZF14-207_hist_2000_16pfts_c260129.nc
+  FATES_PARAMFILE=/glade/work/afoster/ABoVE/above_nwt/parameter_files/default_nwt_params.json
 EOM
 
 #==============================================================================
@@ -93,6 +104,7 @@ case_dir=""
 clm_usrdat_dir_parent=""
 case_name=""
 config_file=""
+fates_paramfile=""
 src_dir=""
 user_mods_dir=""
 while [ $# -gt 0 ]; do
@@ -119,6 +131,14 @@ while [ $# -gt 0 ]; do
         exit 1
       fi
       clm_usrdat_dir_parent="$2"
+      shift 2
+      ;;
+    -p|--fates-paramfile)
+      if [ $# -lt 2 ]; then
+        echo "ERROR: $1 requires an argument" >&2
+        exit 1
+      fi
+      fates_paramfile="$2"
       shift 2
       ;;
     -n|--case-name)
@@ -183,11 +203,12 @@ read_config "$config_file"
 CASE_DIR="${case_dir:-${CASE_DIR}}"
 CLM_USRDAT_DIR_PARENT="${clm_userdat_dir_parent:-${CLM_USRDAT_DIR_PARENT:-$DEFAULT_CLM_USRDAT_DIR_PARENT}}"
 CASENAME="${case_name:-${CASENAME}}"
+FATES_PARAMFILE="${fates_paramfile:-${FATES_PARAMFILE:-$DEFAULT_FATES_PARAMFILE}}"
 SRC_DIR="${src_dir:-${SRC_DIR}}"
 USER_MODS_DIR="${user_mods_dir:-${USER_MODS_DIR:-$DEFAULT_USER_MODS_DIR}}"
 
 # ensure required environment variables are set
-base_vars=(SITE CASE_DIR CASENAME SRC_DIR COMPSET USER_MODS_DIR STOP_N RESUBMIT LAT LON SURDAT_FILE CLM_USRDAT_DIR_PARENT)
+base_vars=(SITE CASE_DIR CASENAME SRC_DIR COMPSET USER_MODS_DIR STOP_N RESUBMIT LAT LON SURDAT_FILE CLM_USRDAT_DIR_PARENT FATES_PARAMFILE)
 set +u
 check_required_vars "${base_vars[@]}"
 set -u
@@ -241,6 +262,7 @@ set -e
 ./xmlchange --force CLM_USRDAT_DIR=${CLM_USRDAT_DIR_PARENT}/dat_${SITE}
 
 echo "fsurdat = '\$CLM_USRDAT_DIR/${SURDAT_FILE}'" >> user_nl_clm
+echo "fates_paramfile = '${FATES_PARAMFILE}'" >> user_nl_clm
 
 # Setup case
 ./case.setup

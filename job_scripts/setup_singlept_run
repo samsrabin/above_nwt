@@ -36,6 +36,7 @@ Options:
   -p, --fates-paramfile <file>
   -s, --src-dir <dir>
   -u, --user-mods-dir <dir>
+  --no-build  Stop after preview_namelists; skip case.build and case.submit.
 
 The config file is sourced via read_config and must define the following:
 
@@ -107,6 +108,7 @@ config_file=""
 fates_paramfile=""
 src_dir=""
 user_mods_dir=""
+no_build=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -a|--account|--chargenum|--project)
@@ -167,6 +169,10 @@ while [ $# -gt 0 ]; do
       ;;
     --user-mods-dir=*)
       user_mods_dir="${1#*=}"
+      shift
+      ;;
+    --no-build)
+      no_build=1
       shift
       ;;
     -h|--help)
@@ -267,6 +273,13 @@ echo "fates_paramfile = '${FATES_PARAMFILE}'" >> user_nl_clm
 
 # Generate namelists
 ./preview_namelists
+
+# Stop here if --no-build was given
+if [ -n "$no_build" ]; then
+  echo "--no-build given; stopping after preview_namelists (case not built or submitted)."
+  echo "case: ${case_name}"
+  exit 0
+fi
 
 # Build case
 ./case.build

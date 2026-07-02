@@ -1,0 +1,10 @@
+
+# Change below line if you move the subset data directory
+
+./xmlchange MPILIB=mpi-serial
+
+./xmlchange DATM_YR_ALIGN=1901
+
+./xmlchange DATM_YR_START=1901
+
+./xmlchange DATM_YR_END=2014

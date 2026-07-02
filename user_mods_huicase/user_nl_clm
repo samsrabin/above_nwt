@@ -1,0 +1,51 @@
+!----------------------------------------------------------------------------------
+! Users should add all user specific namelist changes below in the form of 
+! namelist_var = new_namelist_value 
+!
+! EXCEPTIONS: 
+! Set use_cndv           by the compset you use and the CLM_BLDNML_OPTS -dynamic_vegetation setting
+! Set use_vichydro       by the compset you use and the CLM_BLDNML_OPTS -vichydro           setting
+! Set use_cn             by the compset you use and CLM_BLDNML_OPTS -bgc  setting
+! Set use_crop           by the compset you use and CLM_BLDNML_OPTS -crop setting
+! Set spinup_state       by the CLM_BLDNML_OPTS -bgc_spinup      setting
+! Set co2_ppmv           with CCSM_CO2_PPMV                      option
+! Set fatmlndfrc         with LND_DOMAIN_PATH/LND_DOMAIN_FILE    options
+! Set finidat            with RUN_REFCASE/RUN_REFDATE/RUN_REFTOD options for hybrid or branch cases
+!                        (includes $inst_string for multi-ensemble cases)
+!                        or with CLM_FORCE_COLDSTART to do a cold start
+!                        or set it with an explicit filename here.
+! Set maxpatch_glc       with GLC_NEC                            option
+! Set glc_do_dynglacier  with GLC_TWO_WAY_COUPLING               env variable
+!----------------------------------------------------------------------------------
+
+! Adrianna's
+z0param_method = 'ZengWang2007'
+fates_spitfire_mode = 0
+use_fates_daylength_factor = .true.
+fates_stomatal_model = 'medlyn2011'
+fates_leafresp_model = 'ryan1991'
+fates_radiation_model = 'twostream'
+
+! Hui's
+use_fates = .true.
+use_fates_sp = .true.
+use_fates_fixed_biogeog = .true.
+use_fates_nocomp = .true.
+use_nvp = .true.
+use_nvp_undersnow = .true.
+nvp_rad_model_ground = .true.
+use_bedrock = .true.
+
+! Adrianna's
+hist_fincl1 = 'FATES_VEGC', 'FATES_FRACTION', 'FATES_GPP', 'FATES_LAI', 'FATES_BASALAREA_SZ',
+              'FATES_NPLANT_PF', 'FATES_BA_WEIGHTED_HEIGHT', 'FATES_NPLANT_SZ',
+              'FATES_NPP', 'QVEGE', 'QVEGT',  'EFLX_LH_TOT', 'FSH',
+	            'FSR', 'FSDS', 'FSA', 'FIRE', 'FLDS', 'FCTR', 'FCEV', 'FGEV', 'BTRANMN', 
+              'FGR', 'SOILWATER_10CM', 'TWS', 'QRUNOFF', 'SNOWDP', 'H2OSNO', 'FSNO', 
+              'TV', 'TG', 'TSA', 'RAIN', 'SNOW', 'TBOT', 'ALT', 'ALTMAX','FIRA',
+              'FATES_VEGC_PF', 'FATES_GPP_PF', 'FATES_NPLANT_SZPF',
+              'FATES_BASALAREA_SZ', 'FATES_BASALAREA_SZPF', 'BTRANMN',
+              'FATES_MORTALITY_BACKGROUND_SZ', 'FATES_MORTALITY_CANOPY_SZ',
+              'FATES_MORTALITY_CSTARV_SZ', 'FATES_MORTALITY_FREEZING_SZ',
+              'FATES_MORTALITY_HYDRAULIC_SZ', 'FATES_MORTALITY_IMPACT_SZ',
+              'FATES_MORTALITY_SENESCENCE_SZ', 'FATES_MORTALITY_TERMINATION_SZ'

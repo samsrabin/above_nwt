@@ -38,7 +38,7 @@ check_required_vars() {
       missing=true
     fi
   done
-  $missing && exit 1
+  if $missing; then exit 1; fi
 }
 
 # function to read a config file and export variables

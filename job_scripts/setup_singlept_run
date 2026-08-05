@@ -1,57 +1,177 @@
 #!/usr/bin/env bash
+set -euo pipefail
+
 #==============================================================================
-# Create and submit a single-point CLM/FATES case.
-#
-# Reads a config file (passed as the first argument), sets up a new CIME case
-# at a single lat/lon point using CLM_USRDAT, applies a standard set of XML
-# and namelist settings, then runs case.setup, preview_namelists, and
-# case.build. 
-#
-# Usage:
-#   ./setup_singlept_run <config_file>
-#
-# The config file is sourced via read_config and must define the following:
-#
-#   SRC_DIR        path to the CTSM checkout
-#   CASE_DIR       directory in which the new case will be created.
-#   CASENAME       name of the case (case is created at $CASE_DIR/$CASENAME).
-#   USER_MODS_DIR  user_mods directory passed to create_newcase.
-#   COMPSET        compset to use (e.g. I1PtClm60Fates).
-#   SITE           site identifier; used to locate the subset surface/domain
-#                  data and the fsurdat file.
-#   LAT, LON       point coordinates (PTS_LAT / PTS_LON).
-#   STOP_N         number of years per run segment (STOP_OPTION=nyears).
-#   RESUBMIT       number of automatic resubmissions.
-#   SURDAT_FILE    file name of surface dataset
-#
-# Optional:
-#   CHARGENUM      project/charge account passed to --project. If unset, the
-#                  PROJECT environment variable is used instead; if neither is
-#                  set, the script exits with an error.
-#
-# example config file:
-#   SRC_DIR=/glade/work/afoster/ABoVE/calibration_update/CTSM
-#   CASE_DIR=/glade/work/afoster/ABoVE/calibration_update/cases
-#   USER_MODS_DIR=/glade/work/afoster/ABoVE/above_nwt/user_mods_black_spruce
-#   COMPSET=I1PtClm60Fates
-#   CASENAME=NWT_black_spruce
-#   CHARGENUM=P08010000
-#   STOP_N=20
-#   RESUBMIT=4
-#   LAT=62.43462
-#   LON=246.84602
-#   SITE=ZF14-207
-#   SURDAT_FILE=surfdata_ZF14-207_hist_2000_16pfts_c260129.nc
-#
+# Define default arg values
+
+# default CLM_USRDAT_DIR_PARENT (overridable with -d/--clm-usrdat-dir-parent):
+DEFAULT_CLM_USRDAT_DIR_PARENT="/glade/work/afoster/ABoVE/subset_data"
+
+# default user_mods directory (overridable with -u/--user-mods-dir):
+# ../user_mods relative to the directory containing this script
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+DEFAULT_USER_MODS_DIR="${script_dir}/../user_mods"
+
+#==============================================================================
+read -r -d '' helptext << EOM || true
+Create and submit a single-point CLM/FATES case.
+
+Reads a config file (passed as the first argument), sets up a new CIME case
+at a single lat/lon point using CLM_USRDAT, applies a standard set of XML
+and namelist settings, then runs case.setup, preview_namelists, and
+case.build.
+
+Usage:
+  ./setup_singlept_run [options] <config_file>
+
+Options:
+  -a, --account, --chargenum, --project <number>
+  -c, --case-dir <dir>
+  -d, --clm-usrdat-dir-parent <dir>
+  -n, --case-name <name>
+  -s, --src-dir <dir>
+  -u, --user-mods-dir <dir>
+
+The config file is sourced via read_config and must define the following:
+
+  COMPSET        compset to use (e.g. I1PtClm60Fates).
+  SITE           site identifier; used to locate the subset surface/domain
+                 data and the fsurdat file.
+  LAT, LON       point coordinates (PTS_LAT / PTS_LON).
+  STOP_N         number of years per run segment (STOP_OPTION=nyears).
+  RESUBMIT       number of automatic resubmissions.
+  SURDAT_FILE    file name of surface dataset; must be relative to
+                 \${CLM_USRDAT_DIR_PARENT}/dat_\${SITE}
+
+Optional:
+  SRC_DIR        path to the CTSM checkout. Can also be set on the command line
+                 with -s/--src-dir, which takes precedence over the config file.
+  CASE_DIR       directory in which the new case will be created. Can also be
+                 set on the command line with -c/--case-dir, which takes
+                 precedence over the config file.
+  CASENAME       name of the case (case is created at \$CASE_DIR/\$CASENAME).
+                 Can also be set on the command line with -n/--case-name, which
+                 takes precedence over the config file.
+  USER_MODS_DIR  user_mods directory passed to create_newcase. Can also be
+                 set on the command line with -u/--user-mods-dir, which takes
+                 precedence over the config file. If set in neither place,
+                 defaults to ../user_mods relative to this script's directory:
+                 '${DEFAULT_USER_MODS_DIR}'.
+  CHARGENUM      project/charge account passed to --project. Can also be set on
+                 the command line with -a/--account/--chargenum/--project, which
+                 takes precedence over the config file. If neither is given, the
+                 PROJECT environment variable is used instead; if that is unset,
+                 the ACCOUNT environment variable is used instead; if that is
+                 unset, the script exits with an error.
+  CLM_USRDAT_DIR_PARENT
+                 \${CLM_USRDAT_DIR_PARENT}/dat_\${SITE} will be set as the
+                 case's CLM_USRDAT_DIR namelist variable. Can also be set on
+                 the command line with -d/--clm-usrdat-dir-parent, which takes
+                 precedence over the config file. If set in neither place,
+                 defaults to '${DEFAULT_CLM_USRDAT_DIR_PARENT}'
+
+example config file:
+  SRC_DIR=/glade/work/afoster/ABoVE/calibration_update/CTSM
+  CASE_DIR=/glade/work/afoster/ABoVE/calibration_update/cases
+  USER_MODS_DIR=/glade/work/afoster/ABoVE/above_nwt/user_mods_black_spruce
+  COMPSET=I1PtClm60Fates
+  CASENAME=NWT_black_spruce
+  CHARGENUM=P08010000
+  STOP_N=20
+  RESUBMIT=4
+  LAT=62.43462
+  LON=246.84602
+  SITE=ZF14-207
+  SURDAT_FILE=surfdata_ZF14-207_hist_2000_16pfts_c260129.nc
+EOM
 
 #==============================================================================
 
-if [ $# -lt 1 ]
-then
-  echo "ERROR: please specify config file"
+# parse command-line arguments
+chargenum=""
+case_dir=""
+clm_usrdat_dir_parent=""
+case_name=""
+config_file=""
+src_dir=""
+user_mods_dir=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -a|--account|--chargenum|--project)
+      if [ $# -lt 2 ]; then
+        echo "ERROR: $1 requires an argument" >&2
+        exit 1
+      fi
+      chargenum="$2"
+      shift 2
+      ;;
+    -c|--case-dir)
+      if [ $# -lt 2 ]; then
+        echo "ERROR: $1 requires an argument" >&2
+        exit 1
+      fi
+      case_dir="$2"
+      shift 2
+      ;;
+    -d|--clm-usrdat-dir-parent)
+      if [ $# -lt 2 ]; then
+        echo "ERROR: $1 requires an argument" >&2
+        exit 1
+      fi
+      clm_usrdat_dir_parent="$2"
+      shift 2
+      ;;
+    -n|--case-name)
+      if [ $# -lt 2 ]; then
+        echo "ERROR: $1 requires an argument" >&2
+        exit 1
+      fi
+      case_name="$2"
+      shift 2
+      ;;
+    -s|--src-dir)
+      if [ $# -lt 2 ]; then
+        echo "ERROR: $1 requires an argument" >&2
+        exit 1
+      fi
+      src_dir="$2"
+      shift 2
+      ;;
+    -u|--user-mods-dir)
+      if [ $# -lt 2 ]; then
+        echo "ERROR: $1 requires an argument" >&2
+        exit 1
+      fi
+      user_mods_dir="$2"
+      shift 2
+      ;;
+    --user-mods-dir=*)
+      user_mods_dir="${1#*=}"
+      shift
+      ;;
+    -h|--help)
+      echo "$helptext"
+      exit 0
+      ;;
+    -*)
+      echo "ERROR: unknown option '$1'" >&2
+      exit 1
+      ;;
+    *)
+      if [ -n "$config_file" ]; then
+        echo "ERROR: unexpected argument '$1'" >&2
+        exit 1
+      fi
+      config_file="$1"
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$config_file" ]; then
+  echo "ERROR: please specify config file" >&2
   exit 1
 fi
-config_file="$1"
 
 # source utility functions
 source "$(dirname "$0")/common_utils"
@@ -59,13 +179,29 @@ source "$(dirname "$0")/common_utils"
 # read and export config variables
 read_config "$config_file"
 
-# ensure required environment variables are set
-base_vars=(SITE CASE_DIR CASENAME SRC_DIR COMPSET USER_MODS_DIR STOP_N RESUBMIT LAT LON SURDAT_FILE)
-check_required_vars "${base_vars[@]}"
+# optional arg value precedence: command-line flag > config file > default
+CASE_DIR="${case_dir:-${CASE_DIR}}"
+CLM_USRDAT_DIR_PARENT="${clm_userdat_dir_parent:-${CLM_USRDAT_DIR_PARENT:-$DEFAULT_CLM_USRDAT_DIR_PARENT}}"
+CASENAME="${case_name:-${CASENAME}}"
+SRC_DIR="${src_dir:-${SRC_DIR}}"
+USER_MODS_DIR="${user_mods_dir:-${USER_MODS_DIR:-$DEFAULT_USER_MODS_DIR}}"
 
-chargenum="${CHARGENUM:-$PROJECT}"
+# ensure required environment variables are set
+base_vars=(SITE CASE_DIR CASENAME SRC_DIR COMPSET USER_MODS_DIR STOP_N RESUBMIT LAT LON SURDAT_FILE CLM_USRDAT_DIR_PARENT)
+set +u
+check_required_vars "${base_vars[@]}"
+set -u
+
+# get and check charge account
+chargenum="${chargenum:-${CHARGENUM:-${PROJECT:-$ACCOUNT}}}"
 if [ -z "${chargenum}" ]; then
-  echo "ERROR: neither CHARGENUM nor PROJECT is set"
+  echo "ERROR: neither CHARGENUM nor PROJECT is set" >&2
+  exit 1
+fi
+chargenum_lower="$(echo "$chargenum" | tr '[:upper:]' '[:lower:]')"
+groups_lower="$(groups | tr '[:upper:]' '[:lower:]')"
+if [[ "$(echo $groups_lower | grep -oE "\b${chargenum_lower}\b")" == "" ]]; then
+  echo "ERROR: you do not seem to have access to charge account '${chargenum}'" >&2
   exit 1
 fi
 
@@ -73,12 +209,16 @@ fi
 case_name=${CASE_DIR}/${CASENAME}
 
 # change into cime directory
-cd "${SRC_DIR}/cime/scripts" || { echo "ERROR: Failed to change directory to ${SRC_DIR}/cime/scripts"; exit 1; }
+set +e
+cd "${SRC_DIR}/cime/scripts" || { echo "ERROR: Failed to change directory to ${SRC_DIR}/cime/scripts" >&2; exit 1; }
+set -e
 
 # create a new case
 ./create_newcase --case ${case_name} --compset ${COMPSET} --res CLM_USRDAT --project ${chargenum} --run-unsupported --user-mods-dir ${USER_MODS_DIR}
 
-cd "${case_name}" || { echo "ERROR: Failed to change directory to ${case_name}"; exit 1; }
+set +e
+cd "${case_name}" || { echo "ERROR: Failed to change directory to ${case_name}" >&2; exit 1; }
+set -e
 
 # env_workflow.xml
 ./xmlchange JOB_WALLCLOCK_TIME=06:00:00
@@ -98,7 +238,7 @@ cd "${case_name}" || { echo "ERROR: Failed to change directory to ${case_name}";
 
 ./xmlchange PTS_LON=${LON}
 ./xmlchange PTS_LAT=${LAT}
-./xmlchange --force CLM_USRDAT_DIR=/glade/work/afoster/ABoVE/subset_data/dat_${SITE}
+./xmlchange --force CLM_USRDAT_DIR=${CLM_USRDAT_DIR_PARENT}/dat_${SITE}
 
 echo "fsurdat = '\$CLM_USRDAT_DIR/${SURDAT_FILE}'" >> user_nl_clm
 
@@ -113,3 +253,5 @@ echo "fsurdat = '\$CLM_USRDAT_DIR/${SURDAT_FILE}'" >> user_nl_clm
 
 # Submit case
 ./case.submit
+
+exit 0
